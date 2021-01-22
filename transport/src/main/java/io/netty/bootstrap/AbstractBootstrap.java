@@ -307,7 +307,16 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
     final ChannelFuture initAndRegister() {
         Channel channel = null;
         try {
+            /**
+             *  channelFactory.newChannel()方法的作用通过ServerBootstrap的通道工厂反射创建一个NioServerSocketChannel
+                 (1)通过NIO的SelectorProvider的openServerSocketChannel方法得到JDK的channel。目的是让Netty包装JDK的channel。
+                 (2)创建了一个唯一的ChannelId，创建了一个NioMessageUnsafe，用于操作消息，创建了一个DefaultChannelPipeline管道，是个双向链表结构，用于过滤所有的进出的消息。
+                 (3)创建了一个NioServerSocketChannelConfig对象，用于对外展示一些配置。
+             */
             channel = channelFactory.newChannel();
+            /**
+             * 设置NioServerSocketChannel的TCP属性,对NioServerSocketChannel的ChannelPipeline添加ChannelInitializer处理器,将整个handler插入到tail的前面
+             */
             init(channel);
         } catch (Throwable t) {
             if (channel != null) {
