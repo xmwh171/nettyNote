@@ -485,6 +485,16 @@ public class IdleStateHandler extends ChannelDuplexHandler {
             super(ctx);
         }
 
+        /**
+         * 1)得到用户设置的超时时间。
+         * 2)如果读取操作结束了（执行了channelReadComplete方法设置），就用当前时间减去给定时间和最后一次读（执操作的时间行了channelReadComplete方法设置），如果小于0，就触发事件。
+         * 反之，继续放入队列。间隔时间是新的计算时间。
+         * 3)触发的逻辑是：首先将任务再次放到队列，时间是刚开始设置的时间，返回一个promise对象，用于做取消操作。
+         * 然后，设置first属性为false，表示，下一次读取不再是第一次了，这个属性在channelRead方法会被改成true。
+         * 4)创建一个IdleStateEvent类型的写事件对象，将此对象传递给用户的UserEventTriggered方法。完成触发事件的操作。
+         * 5)总的来说，每次读取操作都会记录一个时间，定时任务时间到了，会计算当前时间和最后一次读的时间的间隔，如果间隔超过了设置的时间，就触发UserEventTriggered方法。
+         * @param ctx
+         */
         @Override
         protected void run(ChannelHandlerContext ctx) {
             long nextDelay = readerIdleTimeNanos;
@@ -494,13 +504,16 @@ public class IdleStateHandler extends ChannelDuplexHandler {
 
             if (nextDelay <= 0) {
                 // Reader is idle - set a new timeout and notify the callback.
+                // 用于取消任务promise
                 readerIdleTimeout = schedule(ctx, this, readerIdleTimeNanos, TimeUnit.NANOSECONDS);
 
                 boolean first = firstReaderIdleEvent;
                 firstReaderIdleEvent = false;
 
                 try {
+                    //再次提交任务
                     IdleStateEvent event = newIdleStateEvent(IdleState.READER_IDLE, first);
+                    //触发用户handler use
                     channelIdle(ctx, event);
                 } catch (Throwable t) {
                     ctx.fireExceptionCaught(t);

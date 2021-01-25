@@ -278,6 +278,7 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
         if (regFuture.isDone()) {
             // At this point we know that the registration was complete and successful.
             ChannelPromise promise = channel.newPromise();
+            // 调用NioServerSocketChannel的doBind方法对JDK的channel和端口进行绑定，完成Netty服务器的所有启动，并开始监听连接事件
             doBind0(regFuture, channel, localAddress, promise);
             return promise;
         } else {
@@ -315,6 +316,7 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
              */
             channel = channelFactory.newChannel();
             /**
+             * 初始化这个NioServerSocketChannel
              * 设置NioServerSocketChannel的TCP属性,对NioServerSocketChannel的ChannelPipeline添加ChannelInitializer处理器,将整个handler插入到tail的前面
              */
             init(channel);
@@ -329,6 +331,7 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
             return new DefaultChannelPromise(new FailedChannel(), GlobalEventExecutor.INSTANCE).setFailure(t);
         }
 
+        // 通过ServerBootstrap的bossGroup注册NioServerSocketChannel
         ChannelFuture regFuture = config().group().register(channel);
         if (regFuture.cause() != null) {
             if (channel.isRegistered()) {

@@ -89,6 +89,13 @@ public class DefaultChannelPipeline implements ChannelPipeline {
      */
     private boolean registered;
 
+    /**
+     * 1）将channel赋值给channel字段，用于pipeline操作channel。
+     * 2）创建一个future和promise，用于异步回调使用。
+     * 3）创建一个inbound的tailContext，创建一个既是inbound类型又是outbound类型的headContext.
+     * 4）最后，将两个Context互相连接，形成双向链表。
+     * @param channel
+     */
     protected DefaultChannelPipeline(Channel channel) {
         this.channel = ObjectUtil.checkNotNull(channel, "channel");
         succeededFuture = new SucceededChannelFuture(channel, null);
@@ -203,7 +210,7 @@ public class DefaultChannelPipeline implements ChannelPipeline {
 
             newCtx = newContext(group, filterName(name, handler), handler);
 
-            addLast0(newCtx);
+            addLast0(newCtx);   // 将Context追加到链表中
 
             // If the registered is false it means that the channel was not registered on an eventLoop yet.
             // In this case we add the context to the pipeline and add a task that will call
