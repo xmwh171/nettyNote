@@ -431,6 +431,10 @@ public final class NioEventLoop extends SingleThreadEventLoop {
         }
     }
 
+    /**
+     * 主要做了3件事情：
+     * select获取感兴趣的事件。processSelectedKeys处理事件。runAllTasks执行队列中的任务。
+     */
     @Override
     protected void run() {
         int selectCnt = 0;

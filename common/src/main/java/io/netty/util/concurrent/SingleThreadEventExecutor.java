@@ -845,6 +845,7 @@ public abstract class SingleThreadEventExecutor extends AbstractScheduledEventEx
             }
         }
 
+        // 如果addTaskWakesUp是false，并且任务不是NonWakeupRunnable类型的，就尝试唤醒selector。这个时候，阻塞在selecor的线程就会立即返回
         if (!addTaskWakesUp && immediate) {
             wakeup(inEventLoop);
         }
@@ -940,6 +941,7 @@ public abstract class SingleThreadEventExecutor extends AbstractScheduledEventEx
     private static final long SCHEDULE_PURGE_INTERVAL = TimeUnit.SECONDS.toNanos(1);
 
     private void startThread() {
+        // 该方法首先判断是否启动过了，保证EventLoop只有一个线程，如果没有启动过，则尝试使用Cas将state状态改为ST_STARTED，也就是已启动。
         if (state == ST_NOT_STARTED) {
             if (STATE_UPDATER.compareAndSet(this, ST_NOT_STARTED, ST_STARTED)) {
                 boolean success = false;
@@ -973,6 +975,13 @@ public abstract class SingleThreadEventExecutor extends AbstractScheduledEventEx
         return false;
     }
 
+    /**
+     * 1)首先调用executor的execute方法，这个executor就是在创建EventLoopGroup的时候创建的ThreadPerTaskExecutor类。该execute方法会将Runnable包装成Netty的FastThreadLocalThread。
+     * 2)任务中，首先判断线程中断状态，然后设置最后一次的执行时间。
+     * 3)执行当前NioEventLoop的run方法，注意：这个方法是个死循环，是整个EventLoop的核心
+     * 4)在finally块中，使用CAS不断修改state状态，改成ST_SHUTTING_DOWN。也就是当线程Loop结束的时候。关闭线程。最后还要死循环确认是否关闭，否则不会break。
+     * 5)然后，执行cleanup操作，更新状态为ST_TERMINATED，并释放当前线程锁。如果任务队列不是空，则打印队列中还有多少个未完成的任务。并回调terminationFuture方法。
+     */
     private void doStartThread() {
         assert thread == null;
         executor.execute(new Runnable() {
